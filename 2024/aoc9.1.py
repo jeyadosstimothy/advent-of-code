@@ -1,4 +1,11 @@
+import time
 import sys
+
+def timer(name, func):
+    start_time = time.time()
+    ret_val = func()
+    print(f"--- {name} : {time.time() - start_time} seconds ---")
+    return ret_val
 
 class Block:
     def __init__(self, size, file_id):
@@ -75,10 +82,9 @@ class Memory:
 if __name__ == '__main__':
     inp = sys.stdin.readline().strip()
     # print(inp)
-    
     mem = Memory([Block(int(inp[i]), str(i//2) if i % 2 == 0 else None) for i in range(len(inp))])
     # print(mem)
-    mem.defrag()
+    timer('defrag', mem.defrag)
     # print(mem)
-    print(mem.checksum())
+    print(timer('checksum', mem.checksum))
 
