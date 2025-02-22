@@ -12,22 +12,18 @@ for i in range(len(grid)):
             i_galaxies.add(i)
             j_galaxies.add(j)
 
-expanded = []
+expansion_rate = 1000000 - 1
+galaxies = []
+di = 0
 for i in range(len(grid)):
-    row = ''
+    if i not in i_galaxies:
+        di = di + expansion_rate
+    dj = 0
     for j in range(len(grid[i])):
         if j not in j_galaxies:
-            row = row + '.'
-        row = row + grid[i][j]
-    expanded.append(row)
-    if i not in i_galaxies:
-        expanded.append(row)
-
-galaxies = []
-for i in range(len(expanded)):
-    for j in range(len(expanded[i])):
-        if expanded[i][j] == '#':
-            galaxies.append((i, j))
+            dj = dj + expansion_rate
+        if grid[i][j] == '#':
+            galaxies.append((i + di, j + dj))            
 
 total = 0
 for i in range(len(galaxies)):
