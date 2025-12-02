@@ -9,12 +9,11 @@ defmodule Solution do
   end
 
   def move_dial("L", offset, curr) do
-    new_offset = rem(offset, 100)
-    rem(curr - new_offset + 100, 100)
+    Integer.mod(curr - offset, 100)
   end
 
   def move_dial("R", offset, curr) do
-    rem(curr + offset, 100)
+    Integer.mod(curr + offset, 100)
   end
 
   def move_dial_reducer_part_1({direction, offset}, {curr, ans}) do
