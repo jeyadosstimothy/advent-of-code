@@ -7,20 +7,17 @@ defmodule Solution do
     |> List.to_tuple()
   end
 
-  def calculate_prefix_max(bank) do
-    len = tuple_size(bank)
-
-    (len - 2)..0//-1
-    |> Enum.reduce([elem(bank, len - 1)], fn i, acc ->
-      curr = elem(bank, i)
-      next = hd(acc)
-      [max(curr, next)] ++ acc
-    end)
+  def calculate_suffix_max(bank) do
+    bank
+    |> Tuple.to_list()
+    |> Enum.reverse()
+    |> Enum.scan(&max/2)
+    |> Enum.reverse()
     |> List.to_tuple()
   end
 
   def find_max_part_1(bank) do
-    prefix_max = calculate_prefix_max(bank)
+    prefix_max = calculate_suffix_max(bank)
     len = tuple_size(bank)
 
     0..(len - 2)
@@ -32,44 +29,39 @@ defmodule Solution do
     n |> Integer.digits() |> length
   end
 
-  def calculate_dp_from(i, bank, dp) do
-    len = tuple_size(bank)
-
-    if i == len - 1 do
-      %{{i, 1} => elem(bank, i)}
-    else
-      take_max = min(len - i, 12)
-
-      new_dp =
-        1..take_max
-        |> Enum.map(fn take ->
-          max_value =
-            if take == 1 do
-              max(elem(bank, i), Map.get(dp, {i + 1, take}, -1))
-            else
-              n = dp[{i + 1, take - 1}]
-
-              max(
-                elem(bank, i) * 10 ** Solution.num_digits(n) + n,
-                Map.get(dp, {i + 1, take}, -1)
-              )
-            end
-
-          {{i, take}, max_value}
-        end)
-        |> Enum.into(%{})
-
-      # IO.inspect(new_dp)
-      Map.merge(dp, new_dp)
-    end
-  end
-
   def find_max_part_2(bank) do
     len = tuple_size(bank)
 
     dp =
-      (len - 1)..0//-1
-      |> Enum.reduce(%{}, &calculate_dp_from(&1, bank, &2))
+      Enum.reduce((len - 1)..0//-1, %{}, fn i, dp ->
+        len = tuple_size(bank)
+
+        if i == len - 1 do
+          %{{i, 1} => elem(bank, i)}
+        else
+          take_max = min(len - i, 12)
+
+          new_dp =
+            for take <- 1..take_max, into: %{} do
+              max_value =
+                if take == 1 do
+                  max(elem(bank, i), Map.get(dp, {i + 1, take}, -1))
+                else
+                  n = dp[{i + 1, take - 1}]
+
+                  max(
+                    elem(bank, i) * 10 ** Solution.num_digits(n) + n,
+                    Map.get(dp, {i + 1, take}, -1)
+                  )
+                end
+
+              {{i, take}, max_value}
+            end
+
+          # IO.inspect(new_dp)
+          Map.merge(dp, new_dp)
+        end
+      end)
 
     dp[{0, 12}]
   end
