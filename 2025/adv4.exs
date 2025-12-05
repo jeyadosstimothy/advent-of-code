@@ -104,12 +104,10 @@ defmodule Solution do
       char_locations(graph)
       |> Map.get("@")
       |> Enum.map(fn pos ->
-        neighbours =
-          Solution.neighbours(pos, bounds)
-          |> Enum.filter(&(graph[&1] == "@"))
-          |> length()
-
-        {pos, neighbours}
+        {pos,
+         Solution.neighbours(pos, bounds)
+         |> Enum.filter(&(graph[&1] == "@"))
+         |> length()}
       end)
       |> Map.new()
 
