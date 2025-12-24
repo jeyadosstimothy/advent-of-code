@@ -469,10 +469,6 @@ Map.get(prefix_matrix, {min_i - 1, min_j - 1})}
 ```
 
 ```elixir
-
-```
-
-```elixir
 LinePlot.plot_points(
   (outside_points |> Enum.map(&{&1, "blue"}))
     ++ (boundary_coords |> Enum.map(&{&1, "red"})))
@@ -488,5 +484,5 @@ LinePlot.plot_line_segments(segments)
 ```
 
 ```elixir
-Solution.solve_part_2(coords)
+Solution.solve_part_2_floodfill(coords)
 ```
