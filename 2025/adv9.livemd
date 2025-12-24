@@ -1,0 +1,291 @@
+# Advent of Code 2025 Day 9
+
+```elixir
+Mix.install([
+  {:vega_lite, "~> 0.1"},
+  {:kino_vega_lite, "~> 0.1"}
+])
+```
+
+## Section
+
+```elixir
+defmodule IOUtil do
+  def inspect(item, opts \\ []) do
+    # IO.inspect(item, opts)
+    item
+  end
+
+  def newline() do
+    # IO.puts("")
+  end
+end
+
+defmodule Solution do
+  def parse_line(str) do
+    String.trim(str)
+    |> String.split(",")
+    |> Enum.map(&String.to_integer/1)
+    |> Enum.reverse()
+    |> List.to_tuple()
+  end
+
+  def to_segments(coords) do
+    coords |> Enum.zip(tl(coords) ++ [hd(coords)])
+  end
+
+  def get_bounds({i1, j1}, {i2, j2}) do
+    min_i = min(i1, i2)
+    max_i = max(i1, i2)
+    min_j = min(j1, j2)
+    max_j = max(j1, j2)
+
+    {{min_i, max_i}, {min_j, max_j}}
+  end
+
+  def calculate_area(c1, c2) do
+    {{min_i, max_i}, {min_j, max_j}} = get_bounds(c1, c2)
+    (max_i - min_i + 1) * (max_j - min_j + 1)
+  end
+
+  def solve_part_1(coords) do
+    coords_i = coords |> Enum.with_index()
+
+    areas =
+      for {c1, i} <- coords_i, {c2, j} <- coords_i, i < j do
+        calculate_area(c1, c2)
+      end
+
+    areas |> Enum.max()
+  end
+
+  def inside_bounds?({{min_i, max_i}, {min_j, max_j}}, {i, j}) do
+    min_i < i and i < max_i and min_j < j and j < max_j
+  end
+
+  def dist({i1, j1}, {i2, j2}) do
+    abs(i1 - i2) + abs(j1 - j2)
+  end
+
+  def get_corners(c1, c2) do
+    {{min_i, max_i}, {min_j, max_j}} = get_bounds(c1, c2)
+
+    [{min_i, min_j}, {min_i, max_j}, {max_i, max_j}, {max_i, min_j}]
+  end
+
+  def coord_inside?(v_segments, c = {i, j}) do
+    IOUtil.inspect(c, label: "c")
+
+    segments_to_the_right =
+      v_segments
+      |> Enum.filter(fn {{si, sj}, {ei, _ej}} ->
+        sj > j and min(si, ei) <= i and i < max(si, ei)
+      end)
+      |> IOUtil.inspect(label: "segments_to_the_right")
+
+    coord_on_the_segment? =
+      v_segments
+      |> Enum.filter(fn {{si, sj}, {ei, _ej}} ->
+        sj == j and min(si, ei) <= i and i <= max(si, ei)
+      end)
+      |> Enum.any?()
+
+    odd_segments? = Integer.mod(segments_to_the_right |> length(), 2) != 0
+    IOUtil.inspect(coord_on_the_segment?, label: "coord_on_the_segment?")
+    IOUtil.inspect(odd_segments?, label: "odd_segments?")
+    coord_on_the_segment? or odd_segments?
+  end
+
+  def corners_valid?(c1, c2, v_segments) do
+    get_corners(c1, c2)
+    |> IOUtil.inspect(label: "corners")
+    |> Enum.all?(&coord_inside?(v_segments, &1))
+    |> IOUtil.inspect(label: "corners_valid?")
+  end
+
+  def h_boundaries_valid?({i1, j1}, {i2, j2}, v_segments) do
+    IOUtil.inspect({{i1, j1}, {i2, j2}}, label: "{{i1, j1}, {i2, j2}}")
+
+    v_segments_to_the_right =
+      v_segments
+      |> Enum.filter(fn {{si, sj}, {ei, _ej}} ->
+        j1 < sj and sj < j2 and min(si, ei) < i1 and i1 < max(si, ei)
+      end)
+      |> IOUtil.inspect(label: "v_segments_to_the_right")
+
+    Integer.mod(length(v_segments_to_the_right), 2) == 0 and
+      v_segments_to_the_right
+      |> Enum.chunk_every(2, 2)
+      |> Enum.all?(fn [v_seg1, v_seg2] ->
+        {{_si, sj1}, {_ei, _ej}} = v_seg1
+        {{_si, sj2}, {_ei, _ej}} = v_seg2
+        abs(sj1 - sj2) == 1
+      end)
+  end
+
+  def v_boundaries_valid?(c1, c2, h_segments) do
+    transpose = fn {{si, sj}, {ei, ej}} ->
+      [{sj, si}, {ej, ei}] |> Enum.sort() |> List.to_tuple()
+    end
+
+    {new_c1, new_c2} = transpose.({c1, c2})
+
+    h_boundaries_valid?(
+      new_c1,
+      new_c2,
+      h_segments |> Enum.map(transpose)
+    )
+  end
+
+  def boundaries_valid?(c1, c2, v_segments, h_segments) do
+    {{min_i, max_i}, {min_j, max_j}} = get_bounds(c1, c2)
+
+    h_boundaries_valid?({min_i, min_j}, {min_i, max_j}, v_segments) and
+      h_boundaries_valid?({max_i, min_j}, {max_i, max_j}, v_segments) and
+      v_boundaries_valid?({min_i, min_j}, {max_i, min_j}, h_segments) and
+      v_boundaries_valid?({min_i, max_j}, {max_i, max_j}, h_segments)
+  end
+
+  # Partial implementation to handle cases where corners & boundaries are valid, but there's gap inside the rectangle.
+  # Skipping this because input doesnt have this edge case.
+  # def v_gap_present_from_c?(c = {i, j}, v_segments) do
+  #   (v_segments
+  #   |> Enum.filter(fn {{si, sj}, {ei, ej}} -> sj >= j and min(si, ei) <= i and i <= max(si, ei) end)
+  #   |> Enum.chunk_every(2, 2)
+  #   |> Enum.any?(fn [c1, c2] -> dist(c1, c2) > 1 end))
+  #   |> IOUtil.inspect(label: "v_gap_present_from_c?")
+  # end
+
+  # def v_gap_present_inside?(c1, c2, coords, v_segments, h_segments) do
+  #   {{min_i, max_i}, {min_j, max_j}} = get_bounds(c1, c2)
+
+  #   trimmed_v_segments =
+  #     v_segments
+  #     |> Enum.filter(fn {{si, sj}, {ei, ej}} ->
+  #       min_j <= sj and sj <= max_j and min_i < ei and si < max_i
+  #     end)
+  #     |> IOUtil.inspect(label: "v_segments_covered")
+  #     |> Enum.map(fn {{si, sj}, {ei, ej}} ->
+  #       {{max(si, min_i + 1), sj}, {min(ei, max_i - 1), ej}}
+  #     end)
+  #     |> IOUtil.inspect(label: "trimmed_v_segments")
+
+  #   v_coords_to_check =
+  #     trimmed_v_segments
+  #     |> Enum.map(fn {{si, _sj}, {_ei, _ej}} -> {si, min_j} end)
+  #     |> Enum.sort()
+  #     |> Enum.dedup()
+
+  #   v_coords_to_check
+  #     |> Enum.filter(&v_gap_present_from_c?(&1, trimmed_v_segments))
+  #     |> Enum.any?()
+  # end
+
+  # def insides_valid?(c1, c2, coords, v_segments, h_segments) do
+  #   true
+  # end
+
+  def valid_rectangle?(c1, c2, _coords, v_segments, h_segments) do
+    corners_valid?(c1, c2, v_segments) and
+      boundaries_valid?(c1, c2, v_segments, h_segments)
+
+    # and insides_valid?(c1, c2, coords, v_segments, h_segments)
+  end
+
+  def solve_part_2(coords) do
+    segments = coords |> to_segments()
+
+    v_segments =
+      segments
+      |> Enum.filter(fn {{_si, sj}, {_ei, ej}} -> sj == ej end)
+      |> IOUtil.inspect(label: "v_segments")
+
+    h_segments =
+      segments
+      |> Enum.filter(fn {{si, _sj}, {ei, _ej}} -> si == ei end)
+      |> IOUtil.inspect(label: "h_segments")
+
+    coords_i = coords |> Enum.with_index()
+
+    areas =
+      for {c1, i} <- coords_i, {c2, j} <- coords_i, i < j do
+        IOUtil.inspect(c1, label: "c1")
+        IOUtil.inspect(c2, label: "c2")
+
+        area =
+          if valid_rectangle?(c1, c2, coords, v_segments, h_segments) do
+            calculate_area(c1, c2)
+          else
+            0
+          end
+
+        IOUtil.inspect(area, label: "area")
+        IOUtil.newline()
+        area
+      end
+
+    areas |> Enum.max()
+  end
+end
+```
+
+```elixir
+defmodule LinePlot do
+  alias VegaLite, as: VL
+
+  # Convert the input list of line segments to a flat list of points with color information
+  def prepare_data(line_segments) do
+    Enum.map(line_segments, fn {{{x1, y1}, {x2, y2}}, color} ->
+      %{
+        x: y1,
+        y: -x1,
+        x2: y2,
+        y2: -x2,
+        color: color  # Adding the color field to each line segment
+      }
+    end)
+  end
+
+  # Function to generate a VegaLite plot for line segments
+  def plot_line_segments(line_segments) do
+    data = prepare_data(line_segments)
+
+    VL.new(width: 600, height: 600)
+    |> VL.data(values: data)
+    |> VL.mark(:rule)
+    |> VL.encode(:x, field: "x", type: :quantitative)
+    |> VL.encode(:y, field: "y", type: :quantitative)
+    |> VL.encode(:x2, field: "x2")
+    |> VL.encode(:y2, field: "y2")
+    |> VL.encode(:color, field: "color")  # Encode color
+    |> VL.to_spec()
+    |> Map.put("selection", %{
+         "zoom" => %{
+           "type" => "interval",
+           "bind" => "scales"
+         }
+       })
+    |> VL.from_spec()
+  end
+end
+```
+
+```elixir
+coords =
+  "/Users/timothy/Sample/advent-of-code/2025/inp9.2.txt"
+  |> File.stream!()
+  |> Enum.map(&Solution.parse_line/1)
+```
+
+```elixir
+segments = Solution.to_segments(coords) |> Enum.map(&{&1, "blue"})
+box_segments = Solution.get_corners({67814, 5393},{50003, 94601})
+  |> Solution.to_segments 
+  |> Enum.map(&{&1, "red"})
+
+LinePlot.plot_line_segments(box_segments ++ segments)
+```
+
+```elixir
+Solution.solve_part_2(coords)
+```
