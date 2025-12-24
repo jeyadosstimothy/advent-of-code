@@ -272,7 +272,7 @@ end
 
 ```elixir
 coords =
-  "/Users/timothy/Sample/advent-of-code/2025/inp9.2.txt"
+  "inp.txt"
   |> File.stream!()
   |> Enum.map(&Solution.parse_line/1)
 ```
