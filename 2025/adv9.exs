@@ -180,7 +180,7 @@ defmodule Solution do
     # and insides_valid?(c1, c2, coords, v_segments, h_segments)
   end
 
-  def solve_part_2(coords) do
+  def solve_part_2_geometry(coords) do
     segments = coords |> to_segments()
 
     v_segments =
@@ -214,6 +214,128 @@ defmodule Solution do
 
     areas |> Enum.max()
   end
+
+  def neighbours({i, j}, {{min_i, max_i}, {min_j, max_j}}, boundary_coords, visited) do
+    [
+      {0, 1},
+      {0, -1},
+      {-1, 0},
+      {1, 0}
+    ]
+    |> Enum.map(fn {di, dj} -> {i + di, j + dj} end)
+    |> Enum.filter(fn {i, j} ->
+      min_i < i and i < max_i and min_j < j and j < max_j and {i, j} not in boundary_coords and
+        {i, j} not in visited
+    end)
+  end
+
+  def traverse([], _bounds, _boundary_coords, visited) do
+    visited
+  end
+
+  def traverse(_queue = [curr | rem], bounds, boundary_coords, visited) do
+    next = neighbours(curr, bounds, boundary_coords, visited)
+
+    traverse(rem ++ next, bounds, boundary_coords, MapSet.union(visited, MapSet.new(next)))
+  end
+
+  def create_prefix_matrix({{min_i, max_i}, {min_j, max_j}}, outside_points) do
+    matrix =
+      for i <- min_i..max_i, j <- min_j..max_j, into: %{} do
+        {{i, j},
+         if {i, j} in outside_points do
+           1
+         else
+           0
+         end}
+      end
+
+    prefix_matrix =
+      matrix
+      |> Enum.sort()
+      |> Enum.reduce(%{}, fn {{i, j}, x}, acc ->
+        Map.put(
+          acc,
+          {i, j},
+          x + Map.get(acc, {i, j - 1}, 0) + Map.get(acc, {i - 1, j}, 0) -
+            Map.get(acc, {i - 1, j - 1}, 0)
+        )
+      end)
+
+    prefix_matrix
+  end
+
+  def get_sum_from_prefix_matrix({{si, sj}, {ei, ej}}, prefix_matrix) do
+    {{min_i, max_i}, {min_j, max_j}} = get_bounds({si, sj}, {ei, ej})
+    IOUtil.inspect({{min_i, max_i}, {min_j, max_j}})
+
+    result =
+      Map.get(prefix_matrix, {max_i, max_j}) - Map.get(prefix_matrix, {min_i - 1, max_j}) -
+        Map.get(prefix_matrix, {max_i, min_j - 1}) +
+        Map.get(prefix_matrix, {min_i - 1, min_j - 1})
+  end
+
+  def compress(sequence) do
+    sequence_to_idx_dict =
+      sequence
+      |> Enum.sort()
+      |> Enum.dedup()
+      |> Enum.with_index()
+      |> Enum.map(fn {x, idx} -> {x, idx * 2} end)
+      |> Map.new()
+
+    sequence_to_idx_dict_inverse = Map.new(sequence_to_idx_dict, fn {x, idx} -> {idx, x} end)
+
+    idxs = sequence_to_idx_dict_inverse |> Enum.map(&elem(&1, 0))
+    bounds = {Enum.min(idxs), Enum.max(idxs)}
+
+    {sequence_to_idx_dict, sequence_to_idx_dict_inverse, bounds}
+  end
+
+  def solve_part_2_floodfill(coords) do
+    {i_dict, i_dict_inverse, i_bounds} = coords |> Enum.map(&elem(&1, 0)) |> compress()
+    {j_dict, j_dict_inverse, j_bounds} = coords |> Enum.map(&elem(&1, 1)) |> compress()
+    IOUtil.inspect(i_dict |> Enum.sort(), label: "i_dict", limit: :infinity)
+    IOUtil.inspect(j_dict |> Enum.sort(), label: "j_dict", limit: :infinity)
+
+    _actual_bounds = {{min_i, max_i}, {min_j, max_j}} = {i_bounds, j_bounds}
+
+    compressed_coords =
+      coords |> Enum.map(fn {i, j} -> {Map.get(i_dict, i), Map.get(j_dict, j)} end)
+
+    boundary_coords =
+      to_segments(compressed_coords)
+      |> Enum.flat_map(fn {{si, sj}, {ei, ej}} ->
+        if si == ei do
+          min(sj, ej)..max(sj, ej) |> Enum.map(&{si, &1})
+        else
+          min(si, ei)..max(si, ei) |> Enum.map(&{&1, sj})
+        end
+      end)
+
+    bounds_with_buffer = {{min_i - 2, max_i + 2}, {min_j - 2, max_j + 2}}
+    start = {min_i - 1, min_j - 1}
+    outside_points = traverse([start], bounds_with_buffer, boundary_coords, MapSet.new([start]))
+    IOUtil.inspect(outside_points |> Enum.sort(), label: "outside_points")
+
+    prefix_matrix = create_prefix_matrix(bounds_with_buffer, outside_points)
+    IOUtil.inspect(prefix_matrix |> Enum.sort(), label: "prefix_matrix", limit: :infinity)
+
+    coords_idx = compressed_coords |> Enum.with_index()
+
+    areas =
+      for {c1 = {i1, j1}, idx_i} <- coords_idx,
+          {c2 = {i2, j2}, idx_j} <- coords_idx,
+          idx_i < idx_j,
+          get_sum_from_prefix_matrix({c1, c2}, prefix_matrix) == 0 do
+        calculate_area(
+          {Map.get(i_dict_inverse, i1), Map.get(j_dict_inverse, j1)},
+          {Map.get(i_dict_inverse, i2), Map.get(j_dict_inverse, j2)}
+        )
+      end
+
+    areas |> Enum.max()
+  end
 end
 
 coords =
@@ -226,7 +348,12 @@ IO.puts("Part 1:")
 Solution.solve_part_1(coords)
 |> IO.puts()
 
-IO.puts("Part 2:")
+IO.puts("Part 2 - Geometry:")
 
-Solution.solve_part_2(coords)
+Solution.solve_part_2_geometry(coords)
+|> IO.puts()
+
+IO.puts("Part 2 - Floodfill:")
+
+Solution.solve_part_2_floodfill(coords)
 |> IO.puts()
