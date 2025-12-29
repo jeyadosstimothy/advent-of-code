@@ -36,7 +36,7 @@ defmodule Solution do
 
     counters = if length(matched) != 0 do
       [first | _] = matched
-      %{first => Map.get(counters, first)} |> IO.inspect()
+      %{first => Map.get(counters, first)}
     else
       counters
     end
