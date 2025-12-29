@@ -1,0 +1,73 @@
+<!-- livebook:{"default_language":"python"} -->
+
+# 2025 Advent of Code Day 11
+
+```elixir
+Mix.install([
+  {:pythonx, "~> 0.4.2"},
+  {:kino_pythonx, "~> 0.1.0"}
+])
+```
+
+```pyproject.toml
+[project]
+name = "project"
+version = "0.0.0"
+requires-python = "==3.13.*"
+dependencies = [
+  "graphviz"
+]
+```
+
+## Section
+
+```python
+import shutil
+shutil.which("dot")
+```
+
+```elixir
+defmodule Solution do
+  def parse_line(s) do
+    {node, children} = s |> String.trim() |> String.split(": ") |> List.to_tuple()
+    {node, String.split(children, " ")}
+  end
+end
+```
+
+```elixir
+graph = "inp.txt"
+|> File.stream!()
+|> Enum.map(&Solution.parse_line/1)
+|> Map.new()
+```
+
+```python
+from graphviz import Graph
+```
+
+```python
+g = Graph()
+
+for node, children in graph.items():
+  for child in children:
+    g.edge(node.decode('utf-8'), child.decode('utf-8'))
+
+g.node('svr', color='green')
+g.node('dac', color='green')
+g.node('fft', color='green')
+g.node('out', color='green')
+
+g_png = g.pipe(format="png")
+```
+
+```elixir
+binary = Pythonx.decode(g_png)
+base64_image = Base.encode64(binary)
+source = "data:image/png;base64,#{base64_image}"
+
+# Set specific width and height via CSS
+Kino.HTML.new("""
+<img src="#{source}" style="width: 1500px; height: auto;" />
+""")
+```
