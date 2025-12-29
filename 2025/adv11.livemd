@@ -36,7 +36,7 @@ end
 ```
 
 ```elixir
-graph = "/Users/timothy/Sample/advent-of-code/2025/inp11.1.2.txt"
+graph = "inp.txt"
 |> File.stream!()
 |> Enum.map(&Solution.parse_line/1)
 |> Map.new()
